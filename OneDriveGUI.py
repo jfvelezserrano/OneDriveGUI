@@ -13,17 +13,16 @@ class Sync(threading.Thread):
     Realiza la operacion de sincronizado interactivo.
     """
 
-    def __init__(self, widget, process, change_icon=False):
+    def __init__(self, widget, process, set_buttons_function):
         threading.Thread.__init__(self)
         self.widget = widget
         self.process = process
-        self.change_icon = change_icon
+        self.set_buttons_function = set_buttons_function
 
     def run(self):
         log_file = open("log.txt", "w")
         subprocess.call(self.process, stdout=log_file)
-        if self.change_icon:
-            self.widget.setIcon(QtGui.QIcon("gray_icon.png"))
+        self.set_buttons_function()
 
 class Show(threading.Thread):
     """
@@ -46,22 +45,24 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     def __init__(self, app, icon, parent=None):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
         menu = QtWidgets.QMenu(parent)
-        sync_now_action = menu.addAction("Sync now")
-        sync_now_action.triggered.connect(self._sync)
-        start_sync_action = menu.addAction("Start sync service")
-        start_sync_action.triggered.connect(self._start_service)
-        stop_sync_action = menu.addAction("Stop sync service")
-        stop_sync_action.triggered.connect(self._stop_service)
-        show_log_action = menu.addAction("Show log")
-        show_log_action.triggered.connect(self._show_log)
-        settings_action = menu.addAction("Settings")
-        settings_action.triggered.connect(self._show_settings)
-        exit_action = menu.addAction("Exit")
-        exit_action.triggered.connect(self._exit)
+        self._sync_now_action = menu.addAction("Sync now")
+        self._sync_now_action.triggered.connect(self._sync)
+        self._start_sync_action = menu.addAction("Start sync service")
+        self._start_sync_action.triggered.connect(self._start_service)
+        self._stop_sync_action = menu.addAction("Stop sync service")
+        self._stop_sync_action.triggered.connect(self._stop_service)
+        self._show_log_action = menu.addAction("Show log")
+        self._show_log_action.triggered.connect(self._show_log)
+        self._settings_action = menu.addAction("Settings")
+        self._settings_action.triggered.connect(self._show_settings)
+        self._exit_action = menu.addAction("Exit")
+        self._exit_action.triggered.connect(self._exit)
         self.setContextMenu(menu)
+        self.setToolTip("OneDrive GUI")
 
     def _sync(self):
-        sync_thread = Sync(self,['onedrive', '--synchronize', '--verbose'], True)
+        sync_thread = Sync(self,['onedrive', '--synchronize', '--verbose'], self.inactive)
+        self._sync_now_action.setEnabled(False)
         sync_thread.start()
         self.setIcon(QtGui.QIcon("red_icon.png"))
 
@@ -82,6 +83,9 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     def _show_settings(self):
         show_thread = Show(['xterm', '-hold', '-e', 'onedrive', '--display-config'])
         show_thread.start()
+
+    def inactive(self):
+        self._sync_now_action.setEnabled(True)
 
     def _exit(self):
         exit()
