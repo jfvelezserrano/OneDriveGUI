@@ -57,27 +57,41 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self._settings_action.triggered.connect(self._show_settings)
         self._exit_action = menu.addAction("Exit")
         self._exit_action.triggered.connect(self._exit)
+        self._stop_sync_action.setEnabled(False)
         self.setContextMenu(menu)
-        self.setToolTip("OneDrive GUI")
+        self._set_status()
+
+    def _set_status(self):
+        message = subprocess.getoutput("systemctl status onedrive@jvelez.service")
+
+        if message.find("Active: inactive (dead)") > 0:
+            self.service_running = False
+            self.inactive()
+        else:
+            self.service_on()
 
     def _sync(self):
         sync_thread = Sync(self,['onedrive', '--synchronize', '--verbose'], self.inactive)
+        self.setToolTip("OneDrive Service\nSynching")
         self._sync_now_action.setEnabled(False)
         sync_thread.start()
         self.setIcon(QtGui.QIcon("red_icon.png"))
 
     def _start_service(self):
-        self.setIcon(QtGui.QIcon("green_icon.png"))
-        #sync_thread = Sync(self)
-        #sync_thread.start()
+        subprocess.call(["systemctl", "start", "onedrive@jvelez.service"])
+        self._set_status()
 
     def _stop_service(self):
-        self.setIcon(QtGui.QIcon("gray_icon.png"))
-        #sync_thread = Sync(self)
-        #sync_thread.start()
+        subprocess.call(["systemctl", "stop", "onedrive@jvelez.service"])
+        self._set_status()
 
     def _show_log(self):
-        show_thread = Show(['xterm', '-e', 'tail', '-f', 'log.txt'])
+        if self.service_running:
+            log_file = open("log.txt", "w")
+            subprocess.call(["systemctl", "status", "onedrive@jvelez.service"],stdout=log_file)
+            show_thread = Show(['xterm', '-e', 'less', 'log.txt'])
+        else:
+            show_thread = Show(['xterm', '-e', 'tail', '-f', 'log.txt'])
         show_thread.start()
 
     def _show_settings(self):
@@ -85,7 +99,21 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         show_thread.start()
 
     def inactive(self):
+        self.setIcon(QtGui.QIcon("gray_icon.png"))
         self._sync_now_action.setEnabled(True)
+        self._start_sync_action.setEnabled(True)
+        self._stop_sync_action.setEnabled(False)
+        self.service_running = False
+        self.setToolTip("OneDrive Service\nInactive")
+        
+
+    def service_on(self):
+        self.setIcon(QtGui.QIcon("green_icon.png"))
+        self._sync_now_action.setEnabled(False)
+        self._start_sync_action.setEnabled(False)
+        self._stop_sync_action.setEnabled(True)
+        self.service_running = True
+        self.setToolTip("OneDrive Service\nActive")
 
     def _exit(self):
         exit()
