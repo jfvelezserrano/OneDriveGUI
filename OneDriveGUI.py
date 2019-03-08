@@ -7,6 +7,7 @@ import subprocess
 from PyQt5 import QtWidgets, QtGui
 from PyQt5 import QtCore
 import threading
+import getpass
 
 class Sync(QtCore.QThread):
     """
@@ -29,7 +30,7 @@ class Sync(QtCore.QThread):
             mensaje += file.read()
         self.set_buttons_function()
 
-        if mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed") >= 0:
+        if (mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed")) or (mensaje.find("Giving up on sync after three attempts") >= 0):
             self.signal.emit()
 
 
@@ -56,8 +57,12 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
     def __init__(self, app, icon, parent=None):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
+        self.system_username = getpass.getuser()
         self.parent = parent
         menu = QtWidgets.QMenu(parent)
+        title = menu.addAction("OneDrive deamon")
+        title.setEnabled(False)
+ 
         self._sync_now_action = menu.addAction("Sync now")
         self._sync_now_action.triggered.connect(self._sync)
         self._start_sync_action = menu.addAction("Start sync service")
@@ -81,7 +86,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         
     def _set_status(self):
         if not self._synching:
-            message = subprocess.getoutput("systemctl status onedrive@jvelez.service")
+            message = subprocess.getoutput("systemctl status onedrive@" + self.system_username + ".service")
 
             if message.find("Active: inactive (dead)") > 0:
                 self.inactive()
@@ -100,23 +105,20 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self.setIcon(QtGui.QIcon("red_icon.png"))
 
     def _error_message(self):
-        try:
-            QtWidgets.QMessageBox.information(self.parent, "OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.")
-        except Exception:
-            pass
+        QtWidgets.QMessageBox.critical(self.parent, "OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.")
 
     def _start_service(self):
-        subprocess.call(["systemctl", "start", "onedrive@jvelez.service"])
+        subprocess.call(["systemctl", "start", "onedrive@" + self.system_username + ".service"])
         self._set_status()
 
     def _stop_service(self):
-        subprocess.call(["systemctl", "stop", "onedrive@jvelez.service"])
+        subprocess.call(["systemctl", "stop", "onedrive@" + self.system_username + ".service"])
         self._set_status()
 
     def _show_log(self):
         if self.service_running:
             log_file = open("log.txt", "w")
-            subprocess.call(["systemctl", "status", "onedrive@jvelez.service"],stdout=log_file)
+            subprocess.call(["systemctl", "status", "onedrive@" + self.system_username + ".service"],stdout=log_file)
 
         show_thread = Show(['xterm', '-e', 'tail', '-f', '-n', '+0', 'log.txt'])
         show_thread.start()
@@ -155,6 +157,7 @@ def main():
     Funcion principal.
     """
     app = QtWidgets.QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
 
     w = QtWidgets.QWidget()
     trayIcon = SystemTrayIcon(app, QtGui.QIcon("gray_icon.png"), w)
@@ -164,3 +167,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
