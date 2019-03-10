@@ -8,6 +8,8 @@ from PyQt5 import QtWidgets, QtGui
 from PyQt5 import QtCore
 import threading
 import getpass
+import time
+import re
 
 class Sync(QtCore.QThread):
     """
@@ -57,7 +59,11 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
     def __init__(self, app, icon, parent=None):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
+
         self.system_username = getpass.getuser()
+        self.service_enabled = False
+        self.last_update = ""
+
         self.parent = parent
         menu = QtWidgets.QMenu(parent)
         title = menu.addAction("OneDrive deamon")
@@ -88,11 +94,24 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         if not self._synching:
             message = subprocess.getoutput("systemctl status onedrive@" + self.system_username + ".service")
 
+            reg_exp = '\\n([a-z]{3}\ [0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2})'
+            
+            date_search = re.findall(reg_exp, message)
+            
+            if date_search:
+                self.last_update = date_search[-1]
+
+            if message.find("@.service; disabled;") > 0:
+                self.service_enabled = False
+                self.inactive()
             if message.find("Active: inactive (dead)") > 0:
+                self.service_enabled = True
                 self.inactive()
             elif (message.find("]: ERROR:") > 0) or (message.find("]: Skipping:") > 0):
+                self.service_enabled = True
                 self.service_on(True)
             else:
+                self.service_enabled = True
                 self.service_on()
 
     def _sync(self):
@@ -105,7 +124,10 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self.setIcon(QtGui.QIcon("red_icon.png"))
 
     def _error_message(self):
-        QtWidgets.QMessageBox.critical(self.parent, "OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.")
+        if self.supportsMessages():
+            self.showMessage("OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.",icon = self.Critical)
+        else:
+            QtWidgets.QMessageBox.critical(self.parent, "OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.")
 
     def _start_service(self):
         subprocess.call(["systemctl", "start", "onedrive@" + self.system_username + ".service"])
@@ -124,26 +146,39 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         show_thread.start()
 
     def _show_settings(self):
-        show_thread = Show(['xterm', '-hold', '-e', 'onedrive', '--display-config'])
+        if self.service_enabled:
+            message = "One Drive Service enabled - To disable it, execute in shell: systemctl disable onedrive@" + self.system_username + ".service\n"
+        else:
+            message = "One Drive Service disabled - To enable it, execute in shell: systemctl enable onedrive@" + self.system_username + ".service\n"
+
+        message += subprocess.getoutput("onedrive --display-config")
+
+        show_thread = Show(['xterm', '-hold', '-e', 'echo', message])
         show_thread.start()
 
     def inactive(self):
         self.setIcon(QtGui.QIcon("gray_icon.png"))
         self._sync_now_action.setEnabled(True)
-        self._start_sync_action.setEnabled(True)
+
         self._stop_sync_action.setEnabled(False)
+        if self.service_enabled:
+            self._start_sync_action.setEnabled(True)
+        else:
+            self._start_sync_action.setEnabled(False)
+
         self.service_running = False
         self._synching = False
-        self.setToolTip("OneDrive Service\nInactive")
-        
+        self.setToolTip("OneDrive Service Inactive")
+
 
     def service_on(self, errors=False):
         if errors:
             self.setIcon(QtGui.QIcon("yellow_icon.png"))
-            self.setToolTip("OneDrive Service\nActive\nErrors - See log")
+            self.setToolTip("OneDrive Service Active\nUpdated at " + self.last_update + "\nRevise log to solve some problems")
         else:
             self.setIcon(QtGui.QIcon("green_icon.png"))
-            self.setToolTip("OneDrive Service\nActive")
+            self.setToolTip("OneDrive Service Active\nUpdated at " + self.last_update)
+        self._start_sync_action.setToolTip("")
         self._sync_now_action.setEnabled(False)
         self._start_sync_action.setEnabled(False)
         self._stop_sync_action.setEnabled(True)
@@ -156,8 +191,14 @@ def main():
     """
     Funcion principal.
     """
+
+    time.sleep(5)
+
     app = QtWidgets.QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+
+    while not QtWidgets.QSystemTrayIcon.isSystemTrayAvailable():
+        time.sleep(5)
 
     w = QtWidgets.QWidget()
     trayIcon = SystemTrayIcon(app, QtGui.QIcon("gray_icon.png"), w)
