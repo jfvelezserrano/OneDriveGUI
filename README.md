@@ -14,4 +14,5 @@ Install Abraunegg OneDrive Free Client (https://github.com/abraunegg/onedrive)
 ### On Ubuntu
 
 sudo pip3 install PyQt5
+
 sudo apt-get install xterm
