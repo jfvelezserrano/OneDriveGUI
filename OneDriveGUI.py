@@ -1,15 +1,16 @@
 """
-    https://github.com/abraunegg/onedrive
+Tray System Icon for Free One Drive Cliente of abraunegg
+https://github.com/abraunegg/onedrive
 """
 
 import sys
 import subprocess
-from PyQt5 import QtWidgets, QtGui
-from PyQt5 import QtCore
 import threading
 import getpass
 import time
 import re
+from PyQt5 import QtWidgets, QtGui
+from PyQt5 import QtCore
 
 class Sync(QtCore.QThread):
     """
@@ -21,10 +22,16 @@ class Sync(QtCore.QThread):
         self.process = process
         self.set_buttons_function = set_buttons_function
         self.signal = signal
+        self.parent_widget = parent
 
     def run(self):
+        """
+        Launch a thread with a blocking process
+        """
         log_file = open("log.txt", "w")
         subprocess.call(self.process, stdout=log_file)
+        self.parent_widget.last_update = time.strftime("%b %d %H:%M:%S\n", time.localtime())
+        log_file.write(self.parent_widget.last_update)
         log_file.close()
 
         mensaje = ""
@@ -68,7 +75,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         menu = QtWidgets.QMenu(parent)
         title = menu.addAction("OneDrive deamon")
         title.setEnabled(False)
- 
+
         self._sync_now_action = menu.addAction("Sync now")
         self._sync_now_action.triggered.connect(self._sync)
         self._start_sync_action = menu.addAction("Start sync service")
@@ -95,16 +102,21 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
             message = subprocess.getoutput("systemctl status onedrive@" + self.system_username + ".service")
 
             reg_exp = '\\n([a-z]{3}\ [0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2})'
-            
+
             date_search = re.findall(reg_exp, message)
-            
+
+            if not date_search:
+                log = open("log.txt", "r")
+                log = log.read(-1)
+                date_search = re.findall(reg_exp, log)
+
             if date_search:
                 self.last_update = date_search[-1]
 
-            if message.find("@.service; disabled;") > 0:
+            if message.find("@.service; disabled;") > 0 or (message.find("could not be found.") > 0):
                 self.service_enabled = False
                 self.inactive()
-            if message.find("Active: inactive (dead)") > 0:
+            elif message.find("Active: inactive (dead)") > 0:
                 self.service_enabled = True
                 self.inactive()
             elif (message.find("]: ERROR:") > 0) or (message.find("]: Skipping:") > 0):
@@ -119,7 +131,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         sync_thread = Sync(self, ['onedrive', '--synchronize', '--verbose'], self.inactive, self.signal)
         self.setToolTip("OneDrive Service\nSynching")
         self._sync_now_action.setEnabled(False)
-        self._synching = True        
+        self._synching = True
         sync_thread.start()
         self.setIcon(QtGui.QIcon("red_icon.png"))
 
@@ -168,16 +180,23 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
         self.service_running = False
         self._synching = False
-        self.setToolTip("OneDrive Service Inactive")
+        message = "OneDrive Service Inactive"
+        if self.last_update:
+            message += "\nUpdated at " + self.last_update
+        self.setToolTip(message)
 
 
     def service_on(self, errors=False):
+
+        message = "OneDrive Service Active"
+        if self.last_update:
+            message += "\nUpdated at " + self.last_update
         if errors:
             self.setIcon(QtGui.QIcon("yellow_icon.png"))
-            self.setToolTip("OneDrive Service Active\nUpdated at " + self.last_update + "\nRevise log to solve some problems")
+            message += "\nRevise log to solve some problems"
         else:
             self.setIcon(QtGui.QIcon("green_icon.png"))
-            self.setToolTip("OneDrive Service Active\nUpdated at " + self.last_update)
+        self.setToolTip(message)
         self._start_sync_action.setToolTip("")
         self._sync_now_action.setEnabled(False)
         self._start_sync_action.setEnabled(False)
@@ -208,4 +227,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
