@@ -13,6 +13,8 @@ This project tries to complement the OneDrive Free Client. It only simplifies th
 
 Icon meaning:
 
+<img src="https://github.com/favicon.ico" width="48">
+
 ![OneDrive Free Client is inactive](https://github.com/jfvelezserrano/OneDriveGUI/blob/master/gray_icon.png | width=48) OneDrive Free Client is inactive
 
 ![OneDrive Free Client is synching](https://github.com/jfvelezserrano/OneDriveGUI/blob/master/red_icon.png | width=48) OneDrive Free Client is synching
