@@ -1,4 +1,4 @@
-# OneDriveGUI
+# OneDriveGUI (beta)
 
 Simple Tray Icon for Abraunegg OneDrive Free Client.
 
