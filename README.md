@@ -13,15 +13,13 @@ This project tries to complement the OneDrive Free Client. It only simplifies th
 
 Icon meaning:
 
-<img src="https://github.com/favicon.ico" width="48">
+<img src="https://github.com/jfvelezserrano/OneDriveGUI/blob/master/gray_icon.png" width="48"> OneDrive Free Client is inactive
 
-![OneDrive Free Client is inactive](https://github.com/jfvelezserrano/OneDriveGUI/blob/master/gray_icon.png | width=48) OneDrive Free Client is inactive
+<img src="https://github.com/jfvelezserrano/OneDriveGUI/blob/master/red_icon.png" width="48"> OneDrive Free Client is synching
 
-![OneDrive Free Client is synching](https://github.com/jfvelezserrano/OneDriveGUI/blob/master/red_icon.png | width=48) OneDrive Free Client is synching
+<img src="https://github.com/jfvelezserrano/OneDriveGUI/blob/master/green_icon.png" width="48"> OneDrive Free Client daeamon is active and perhaps synching
 
-![OneDrive Free Client daeamon is active and perhaps synching](https://github.com/jfvelezserrano/OneDriveGUI/blob/master/green_icon.png | width=48) OneDrive Free Client daeamon is active and perhaps synching
-
-![OneDrive Free Client daeamon is active and perhaps synching, but there was errors in last synchronization](https://github.com/jfvelezserrano/OneDriveGUI/blob/master/yellow_icon.png | width=48) OneDrive Free Client daeamon is active and perhaps synching, but there was errors in last synchronization
+<img src="https://github.com/jfvelezserrano/OneDriveGUI/blob/master/yellow_icon.png" width="48"> OneDrive Free Client daeamon is active and perhaps synching, but there was errors in last synchronization
 
 ## Project status
 
