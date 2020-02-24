@@ -34,14 +34,18 @@ Install Abraunegg OneDrive Free Client (https://github.com/abraunegg/onedrive)
 
 ### On Ubuntu
 
+```sh
+cd ~ 
+
 sudo pip3 install PyQt5
 
 sudo apt-get install xterm
 
-clone https://github.com/jfvelezserrano/OneDriveGUI.git
+git clone https://github.com/jfvelezserrano/OneDriveGUI.git
 
 cd OneDriveGUI
 
 python3 OneDriveGUI.py
+```
 
 After 5 seconds the tray icon appears.
