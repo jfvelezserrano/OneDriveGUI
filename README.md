@@ -8,8 +8,9 @@ This project tries to complement the OneDrive Free Client. It only simplifies th
 - onedrive --synchronize --verbose -> Sync now
 - onedrive --display-config -> Show settings
 - systemctl start -> Start sync service
-- systemctl stop -> Stop sync service
-- systemctl status -> Show Log
+- systemctl --user stop -> Stop sync service
+- systemctl --user status -> Show Log
+- systemctl --user disable onedrive -> Stop for ever
 
 Icon meaning:
 
