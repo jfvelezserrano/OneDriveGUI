@@ -39,7 +39,7 @@ class Sync(QtCore.QThread):
             mensaje += file.read()
         self.set_buttons_function()
 
-        if (mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed")) or (mensaje.find("Giving up on sync after three attempts") >= 0):
+        if (mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed")>=0) or (mensaje.find("Giving up on sync after three attempts") >= 0):
             self.signal.emit()
 
 

@@ -23,3 +23,9 @@ cd OneDriveGUI
 python3 OneDriveGUI.py
 
 After 5 seconds the tray icon appears.
+
+To stop automatic synchronization run:
+
+systemctl --user stop onedrive
+
+You can add the script OneDriveGUI.sh at startup sequence.
