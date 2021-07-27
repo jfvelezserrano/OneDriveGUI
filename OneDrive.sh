@@ -1,3 +1,3 @@
 #!/bin/bash
-cd ~/OneDriveGUI/
-python OneDriveGUI.py
+cd ~/Dev/OneDriveGUI/
+python3 OneDriveGUI.py
