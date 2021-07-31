@@ -43,8 +43,6 @@ class Sync(QtCore.QThread):
             self.signal.emit()
 
 
-
-
 class Show(threading.Thread):
     """
     Realiza la operacion de sincronizado interactivo.
@@ -56,7 +54,6 @@ class Show(threading.Thread):
 
     def run(self):
         subprocess.call(self.process)
-
 
 class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     """
@@ -101,32 +98,37 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         
     def _set_status(self):
         if not self._synching:
-            message = subprocess.getoutput("systemctl status onedrive@" + self.system_username + ".service")
-
-            reg_exp = '\\n([a-z]{3}\ [0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2})'
-
-            date_search = re.findall(reg_exp, message)
-
-            if not date_search:
-                log = open("log.txt", "r")
-                log = log.read(-1)
-                date_search = re.findall(reg_exp, log)
-
-            if date_search:
-                self.last_update = date_search[-1]
-
-            if message.find("@.service; disabled;") > 0 or (message.find("could not be found.") > 0):
-                self.service_enabled = False
-                self.inactive()
-            elif message.find("Active: inactive (dead)") > 0:
-                self.service_enabled = True
-                self.inactive()
-            elif (message.find("]: ERROR:") > 0) or (message.find("]: Skipping:") > 0):
-                self.service_enabled = True
-                self.service_on(True)
-            else:
+            message = subprocess.getoutput('ps axj | grep "onedrive --[m]onitor"')
+            if message != "":
                 self.service_enabled = True
                 self.service_on()
+            else:
+                message = subprocess.getoutput("systemctl status onedrive@" + self.system_username + ".service")
+                
+                reg_exp = '\\n([a-z]{3}\ [0-9]{2}\ [0-9]{2}:[0-9]{2}:[0-9]{2})'
+
+                date_search = re.findall(reg_exp, message)
+
+                if not date_search:
+                    log = open("log.txt", "r")
+                    log = log.read(-1)
+                    date_search = re.findall(reg_exp, log)
+
+                if date_search:
+                    self.last_update = date_search[-1]
+
+                if message.find("@.service; disabled;") > 0 or (message.find("could not be found.") > 0):
+                    self.service_enabled = False
+                    self.inactive()
+                elif message.find("Active: inactive (dead)") > 0:
+                    self.service_enabled = True
+                    self.inactive()
+                elif (message.find("]: ERROR:") > 0) or (message.find("]: Skipping:") > 0):
+                    self.service_enabled = True
+                    self.service_on(True)
+                else:
+                    self.service_enabled = True
+                    self.service_on()
 
     def _sync(self):
         self.error_signal.connect(self._error_message)
@@ -145,17 +147,19 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
             QtWidgets.QMessageBox.critical(self.parent, "OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.")
 
     def _start_service(self):
-        subprocess.call(["systemctl", "start", "onedrive@" + self.system_username + ".service"])
+        #subprocess.call(["systemctl", "start", "onedrive@" + self.system_username + ".service"])
+        subprocess.call(["systemctl", "--user", "start", "onedrive"])
         self._set_status()
 
     def _stop_service(self):
-        subprocess.call(["systemctl", "stop", "onedrive@" + self.system_username + ".service"])
+        subprocess.call(["systemctl", "--user", "stop", "onedrive"])
         self._set_status()
 
     def _show_log(self):
         if self.service_running:
             log_file = open("log.txt", "w")
-            subprocess.call(["systemctl", "status", "onedrive@" + self.system_username + ".service"],stdout=log_file)
+            #subprocess.call(["systemctl", "status", "onedrive@" + self.system_username + ".service"],stdout=log_file)
+            subprocess.call(["systemctl", "--user", "status", "onedrive"],stdout=log_file)
 
         show_thread = Show(['xterm', '-e', 'tail', '-f', '-n', '+0', 'log.txt'])
         show_thread.start()
@@ -179,9 +183,9 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
         self._stop_sync_action.setEnabled(False)
         if self.service_enabled:
-            self._start_sync_action.setEnabled(True)
-        else:
             self._start_sync_action.setEnabled(False)
+        else:
+            self._start_sync_action.setEnabled(True)
 
         self.service_running = False
         self._synching = False
