@@ -17,11 +17,11 @@ class Sync(QtCore.QThread):
     Realiza la operacion de sincronizado interactivo.
     """
 
-    def __init__(self, parent, process, set_buttons_function, signal):
+    def __init__(self, parent, process, inactive_signal, error_signal):
         QtCore.QThread.__init__(self, parent)
         self.process = process
-        self.set_buttons_function = set_buttons_function
-        self.signal = signal
+        self.inactive_signal = inactive_signal
+        self.error_signal = error_signal
         self.parent_widget = parent
 
     def run(self):
@@ -37,7 +37,7 @@ class Sync(QtCore.QThread):
         mensaje = ""
         with open("log.txt", "r") as file:
             mensaje += file.read()
-        self.set_buttons_function()
+        self.inactive_signal.emit()
 
         if (mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed")>=0) or (mensaje.find("Giving up on sync after three attempts") >= 0):
             self.signal.emit()
@@ -62,7 +62,9 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
     """
     Interfaz grafica para onedrive
     """
-    signal = QtCore.pyqtSignal()
+
+    error_signal = QtCore.pyqtSignal()
+    inactive_signal = QtCore.pyqtSignal()
 
     def __init__(self, app, icon, parent=None):
         QtWidgets.QSystemTrayIcon.__init__(self, icon, parent)
@@ -127,8 +129,9 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
                 self.service_on()
 
     def _sync(self):
-        self.signal.connect(self._error_message)
-        sync_thread = Sync(self, ['onedrive', '--synchronize', '--verbose'], self.inactive, self.signal)
+        self.error_signal.connect(self._error_message)
+        self.inactive_signal.connect(self.inactive)
+        sync_thread = Sync(self, ['onedrive', '--synchronize', '--verbose'], self.inactive_signal, self.error_signal)
         self.setToolTip("OneDrive Service\nSynching")
         self._sync_now_action.setEnabled(False)
         self._synching = True
@@ -170,7 +173,9 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
 
     def inactive(self):
         self.setIcon(QtGui.QIcon("gray_icon.png"))
-        self._sync_now_action.setEnabled(True)
+
+        if threading.currentThread().getName() == "MainThread":
+            self._sync_now_action.setEnabled(True)
 
         self._stop_sync_action.setEnabled(False)
         if self.service_enabled:
@@ -184,7 +189,6 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         if self.last_update:
             message += "\nUpdated at " + self.last_update
         self.setToolTip(message)
-
 
     def service_on(self, errors=False):
 
@@ -202,6 +206,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self._start_sync_action.setEnabled(False)
         self._stop_sync_action.setEnabled(True)
         self.service_running = True
+        
 
     def _exit(self):
         exit()
