@@ -11,6 +11,7 @@ import time
 import re
 from PyQt5 import QtWidgets, QtGui
 from PyQt5 import QtCore
+#import debugpy
 
 class Sync(QtCore.QThread):
     """
@@ -28,8 +29,9 @@ class Sync(QtCore.QThread):
         """
         Launch a thread with a blocking process
         """
+        #debugpy.debug_this_thread()
         log_file = open("log.txt", "w")
-        subprocess.call(self.process, stdout=log_file)
+        subprocess.call(self.process, stdout=log_file, stderr=log_file)
         self.parent_widget.last_update = time.strftime("%b %d %H:%M:%S\n", time.localtime())
         log_file.write(self.parent_widget.last_update)
         log_file.close()
@@ -39,8 +41,10 @@ class Sync(QtCore.QThread):
             mensaje += file.read()
         self.inactive_signal.emit()
 
-        if (mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed")>=0) or (mensaje.find("Giving up on sync after three attempts") >= 0):
-            self.signal.emit()
+        if (mensaje.find("Skipping uploading this new file as it exceeds the maximum size allowed")>=0) \
+            or (mensaje.find("Giving up on sync after three attempts") >= 0) \
+            or (mensaje.find("\nERROR:") >= 0):
+            self.error_signal.emit()
 
 
 class Show(threading.Thread):
@@ -117,15 +121,15 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
                 if date_search:
                     self.last_update = date_search[-1]
 
-                if message.find("@.service; disabled;") > 0 or (message.find("could not be found.") > 0):
+                if (message.find("]: ERROR:") > 0) or (message.find("\nERROR:") > 0) or (message.find("]: Skipping:") > 0):
+                    self.service_enabled = True
+                    self.service_on(True)
+                elif message.find("@.service; disabled;") > 0 or (message.find("could not be found.") > 0):
                     self.service_enabled = False
                     self.inactive()
                 elif message.find("Active: inactive (dead)") > 0:
                     self.service_enabled = True
                     self.inactive()
-                elif (message.find("]: ERROR:") > 0) or (message.find("]: Skipping:") > 0):
-                    self.service_enabled = True
-                    self.service_on(True)
                 else:
                     self.service_enabled = True
                     self.service_on()
@@ -141,6 +145,7 @@ class SystemTrayIcon(QtWidgets.QSystemTrayIcon):
         self.setIcon(QtGui.QIcon("red_icon.png"))
 
     def _error_message(self):
+        self.service_on(True)
         if self.supportsMessages():
             self.showMessage("OneDrive Tray Icon", "Some errors occur during sync. Review log and resolve the errors.",icon = self.Critical)
         else:
